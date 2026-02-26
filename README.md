@@ -125,12 +125,6 @@ npm run dev
 
 ---
 
-## 👨‍💻 Author
 
-**Surya Kanta Nag**
-- GitHub: [@Surya07102000](https://github.com/Surya07102000)
-- Email: suryakantanag05@gmail.com
-
----
 
 ⭐ **If you find this project useful, please consider giving it a star!**
