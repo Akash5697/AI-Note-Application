@@ -54,5 +54,35 @@ export const useAuthStore = create((set) => ({
             localStorage.removeItem('token');
             set({ user: null, token: null, isAuthenticated: false });
         }
+    },
+
+    forgotPassword: async (email) => {
+        set({ isLoading: true, error: null });
+        try {
+            await api.post('/auth/forgot-password', { email });
+            set({ isLoading: false });
+            return true;
+        } catch (error) {
+            set({
+                error: error.response?.data?.message || 'Failed to send reset link',
+                isLoading: false
+            });
+            return false;
+        }
+    },
+
+    resetPassword: async (token, password) => {
+        set({ isLoading: true, error: null });
+        try {
+            await api.post('/auth/reset-password', { token, password });
+            set({ isLoading: false });
+            return true;
+        } catch (error) {
+            set({
+                error: error.response?.data?.message || 'Failed to reset password',
+                isLoading: false
+            });
+            return false;
+        }
     }
 }));

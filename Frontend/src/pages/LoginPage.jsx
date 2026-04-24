@@ -4,11 +4,12 @@ import { useAuthStore } from "../store/authStore";
 import { AuthLayout } from "../components/layout/AuthLayout";
 import { Input } from "../components/ui/Input";
 import { Button } from "../components/ui/Button";
-import { ArrowRight } from "lucide-react";
+import { Eye, EyeOff, ArrowRight } from "lucide-react";
 
 export function LoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const { login, isLoading, error } = useAuthStore();
     const navigate = useNavigate();
 
@@ -43,14 +44,23 @@ export function LoginPage() {
 
                     <div className="space-y-2">
                         <label className="text-xs font-bold uppercase tracking-widest text-[#1c2444] ml-1">Password</label>
-                        <input
-                            type="password"
-                            placeholder="••••••••"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            className="w-full bg-[#1c2444] text-white rounded-xl px-5 py-3.5 outline-none focus:ring-4 focus:ring-indigo-500/20 transition-all placeholder:text-gray-500"
-                        />
+                        <div className="relative">
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                placeholder="••••••••"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                className="w-full bg-[#1c2444] text-white rounded-xl px-5 py-3.5 pr-12 outline-none focus:ring-4 focus:ring-indigo-500/20 transition-all placeholder:text-gray-500"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                            >
+                                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                            </button>
+                        </div>
                     </div>
 
                     <div className="flex items-center justify-between px-1">
@@ -58,7 +68,7 @@ export function LoginPage() {
                             <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                             <span className="text-xs font-medium text-gray-500">Remember me</span>
                         </label>
-                        <Link to="#" className="text-xs font-bold text-gray-400 hover:text-indigo-600 transition-colors">
+                        <Link to="/forgot-password" title="Click to reset password" className="text-xs font-bold text-gray-400 hover:text-indigo-600 transition-colors">
                             Forgot Password?
                         </Link>
                     </div>
