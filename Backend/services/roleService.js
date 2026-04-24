@@ -1,103 +1,125 @@
-const { Role, User } = require('../models');
+const { getDb, ObjectId } = require('../config/db');
 
 exports.getRoles = async (includeUserCount) => {
-    let roles = await Role.findAll();
+    const db = getDb();
+    const roles = await db.collection('roles').find().toArray();
 
     if (includeUserCount === 'true') {
-        roles = await Promise.all(roles.map(async (role) => {
-            const userCount = await User.count({ where: { roleId: role.id } });
+        return await Promise.all(roles.map(async (role) => {
+            const userCount = await db.collection('users').countDocuments({ roleId: role._id, deletedAt: null });
             return {
-                ...role.toJSON(),
+                ...role,
+                id: role._id.toString(),
                 userCount
             };
         }));
     }
 
-    return roles;
+    return roles.map(r => ({ ...r, id: r._id.toString() }));
 };
 
 exports.createRole = async (data) => {
+    const db = getDb();
     const { name, permissions, description } = data;
-    const role = await Role.create({ name, permissions, description });
-    return role;
+    const newRole = {
+        name,
+        permissions: permissions || [],
+        description: description || '',
+        createdAt: new Date(),
+        updatedAt: new Date()
+    };
+    const result = await db.collection('roles').insertOne(newRole);
+    return { ...newRole, id: result.insertedId.toString(), _id: result.insertedId };
 };
 
 exports.updateRole = async (id, data) => {
-    const role = await Role.findByPk(id);
-    if (!role) {
+    const db = getDb();
+    const updateData = { updatedAt: new Date() };
+    if (data.name) updateData.name = data.name;
+    if (data.permissions) updateData.permissions = data.permissions;
+    if (data.description) updateData.description = data.description;
+
+    const result = await db.collection('roles').findOneAndUpdate(
+        { _id: new ObjectId(id) },
+        { $set: updateData },
+        { returnDocument: 'after' }
+    );
+
+    if (!result) {
         throw new Error('Role not found');
     }
 
-    if (data.name) role.name = data.name;
-    if (data.permissions) role.permissions = data.permissions;
-    if (data.description) role.description = data.description;
-
-    await role.save();
-    return role;
+    return { ...result, id: result._id.toString() };
 };
 
 exports.deleteRole = async (id) => {
-    const role = await Role.findByPk(id);
-    if (!role) {
+    const db = getDb();
+    const result = await db.collection('roles').deleteOne({ _id: new ObjectId(id) });
+    if (result.deletedCount === 0) {
         throw new Error('Role not found');
     }
-
-    await role.destroy();
     return true;
 };
 
 exports.getRoleById = async (id, includeUsers) => {
-    const role = await Role.findByPk(id);
+    const db = getDb();
+    const role = await db.collection('roles').findOne({ _id: new ObjectId(id) });
     if (!role) {
         throw new Error('Role not found');
     }
 
-    const roleData = role.toJSON();
+    const roleData = { ...role, id: role._id.toString() };
 
     if (includeUsers === 'true') {
-        const users = await User.findAll({
-            where: { roleId: id },
-            attributes: ['id', 'username', 'email', 'createdAt'],
-            order: [['createdAt', 'DESC']]
-        });
-        roleData.users = users;
+        const users = await db.collection('users')
+            .find({ roleId: new ObjectId(id), deletedAt: null }, { projection: { password: 0 } })
+            .sort({ createdAt: -1 })
+            .toArray();
+        roleData.users = users.map(u => ({ ...u, id: u._id.toString() }));
     }
 
     return roleData;
 };
 
 exports.getUsersByRoleType = async (roleType) => {
-    const role = await Role.findOne({ where: { name: roleType } });
+    const db = getDb();
+    const role = await db.collection('roles').findOne({ name: roleType });
     if (!role) {
         throw new Error(`Role '${roleType}' not found`);
     }
 
-    const users = await User.findAll({
-        where: { roleId: role.id },
-        attributes: { exclude: ['password'] },
-        include: [{ model: Role, as: 'role', attributes: ['name', 'description'] }],
-        order: [['createdAt', 'DESC']]
-    });
+    const users = await db.collection('users')
+        .find({ roleId: role._id, deletedAt: null }, { projection: { password: 0 } })
+        .sort({ createdAt: -1 })
+        .toArray();
 
-    return users;
+    return users.map(u => ({
+        ...u,
+        id: u._id.toString(),
+        role: { name: role.name, description: role.description }
+    }));
 };
 
 exports.getRoleStatistics = async () => {
-    const roles = await Role.findAll();
+    const db = getDb();
+    const roles = await db.collection('roles').find().toArray();
+    
     const rolesWithCounts = await Promise.all(roles.map(async (role) => {
-        const userCount = await User.count({ where: { roleId: role.id } });
+        const userCount = await db.collection('users').countDocuments({ roleId: role._id, deletedAt: null });
         return {
-            ...role.toJSON(),
+            ...role,
+            id: role._id.toString(),
             userCount
         };
     }));
 
-    const totalUsers = await User.count();
-    const adminRole = await Role.findOne({ where: { name: 'admin' } });
-    const userRole = await Role.findOne({ where: { name: 'user' } });
+    const totalUsers = await db.collection('users').countDocuments({ deletedAt: null });
+    
+    const adminRole = await db.collection('roles').findOne({ name: 'admin' });
+    const userRole = await db.collection('roles').findOne({ name: 'user' });
 
-    const adminCount = adminRole ? await User.count({ where: { roleId: adminRole.id } }) : 0;
-    const userCount = userRole ? await User.count({ where: { roleId: userRole.id } }) : 0;
+    const adminCount = adminRole ? await db.collection('users').countDocuments({ roleId: adminRole._id, deletedAt: null }) : 0;
+    const userCount = userRole ? await db.collection('users').countDocuments({ roleId: userRole._id, deletedAt: null }) : 0;
 
     return {
         totalRoles: roles.length,
@@ -113,6 +135,7 @@ exports.bulkUpdateUserRoles = async (updates) => {
         throw new Error('Updates must be an array');
     }
 
+    const db = getDb();
     const results = [];
 
     for (const update of updates) {
@@ -124,15 +147,21 @@ exports.bulkUpdateUserRoles = async (updates) => {
         }
 
         try {
-            const user = await User.findByPk(userId);
-            if (!user) {
+            const result = await db.collection('users').findOneAndUpdate(
+                { _id: new ObjectId(userId), deletedAt: null },
+                { $set: { roleId: new ObjectId(roleId), updatedAt: new Date() } },
+                { returnDocument: 'after' }
+            );
+
+            if (!result) {
                 results.push({ userId, error: 'User not found' });
             } else {
-                user.roleId = roleId;
-                await user.save();
-
-                await user.reload({ include: [{ model: Role, as: 'role' }] });
-                results.push({ userId, user, success: true });
+                const role = await db.collection('roles').findOne({ _id: result.roleId });
+                results.push({ 
+                    userId, 
+                    user: { ...result, id: result._id.toString(), role }, 
+                    success: true 
+                });
             }
         } catch (error) {
             results.push({ userId, error: error.message });
