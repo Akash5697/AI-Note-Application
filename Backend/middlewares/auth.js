@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config/config');
-const { User, Role } = require('../models');
+const { getDb, ObjectId } = require('../config/db');
 
 const auth = async (req, res, next) => {
   try {
@@ -11,15 +11,32 @@ const auth = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, config.jwtSecret);
-    const user = await User.findByPk(decoded.id, {
-      include: [{ model: Role, as: 'role' }],
-      attributes: { exclude: ['password'] }
-    });
+    const db = getDb();
+    
+    // Use aggregation to include role
+    const pipeline = [
+      { $match: { _id: new ObjectId(decoded.id), deletedAt: null } },
+      {
+        $lookup: {
+          from: 'roles',
+          localField: 'roleId',
+          foreignField: '_id',
+          as: 'role'
+        }
+      },
+      { $unwind: { path: '$role', preserveNullAndEmptyArrays: true } },
+      { $project: { password: 0 } }
+    ];
+
+    const results = await db.collection('users').aggregate(pipeline).toArray();
+    const user = results[0];
 
     if (!user) {
       return res.status(401).json({ message: 'Token is not valid' });
     }
 
+    // Map _id to id for consistency in req.user
+    user.id = user._id.toString();
     req.user = user;
     next();
   } catch (error) {

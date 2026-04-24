@@ -28,11 +28,44 @@ exports.login = async (req, res) => {
 
 exports.getMe = async (req, res) => {
   try {
-    // req.user logic depends on auth middleware
     const result = await authService.getMe(req.user.id);
     res.json(result);
   } catch (error) {
     console.error('GetMe error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+    const result = await authService.forgotPassword(email);
+    res.json(result);
+  } catch (error) {
+    if (error.message === 'User with this email does not exist') {
+      return res.status(404).json({ message: error.message });
+    }
+    console.error('ForgotPassword error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) {
+      return res.status(400).json({ message: 'Token and password are required' });
+    }
+    const result = await authService.resetPassword(token, password);
+    res.json(result);
+  } catch (error) {
+    if (error.message === 'Invalid or expired token') {
+      return res.status(400).json({ message: error.message });
+    }
+    console.error('ResetPassword error:', error);
     res.status(500).json({ message: error.message });
   }
 };

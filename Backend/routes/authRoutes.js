@@ -18,6 +18,18 @@ router.post(
     AuthController.login
 );
 
+router.post(
+    '/forgot-password',
+    [validateDto(authDto.forgotPasswordDto)],
+    AuthController.forgotPassword
+);
+
+router.post(
+    '/reset-password',
+    [validateDto(authDto.resetPasswordDto)],
+    AuthController.resetPassword
+);
+
 // Protected routes
 router.get(
     '/me',
