@@ -7,20 +7,18 @@ function validateSmtpConfig() {
     return !!(host && port && user && pass && from);
 }
 
-function createTransport(hostOverride) {
-    const host = hostOverride || config.smtp.host;
+function createTransport() {
     return nodemailer.createTransport({
-        host,
-        port: Number(config.smtp.port),
-        secure: false,
+        host: config.smtp.host,
+        port: Number(config.smtp.port), // 587
+        secure: false, // IMPORTANT for port 587
         auth: {
             user: config.smtp.user,
             pass: config.smtp.pass,
         },
         tls: {
-            // Ensure TLS SNI uses actual hostname even if we connect to an IP
-            servername: config.smtp.host
-        }
+            rejectUnauthorized: false,
+        },
     });
 }
 
