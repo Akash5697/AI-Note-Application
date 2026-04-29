@@ -12,7 +12,7 @@ function createTransport(hostOverride) {
     return nodemailer.createTransport({
         host,
         port: Number(config.smtp.port),
-        secure: Number(config.smtp.port) === 465,
+        secure: false,
         auth: {
             user: config.smtp.user,
             pass: config.smtp.pass,
