@@ -19,7 +19,7 @@ export function RegisterPage() {
         e.preventDefault();
         const success = await register(formData.username, formData.email, formData.password);
         if (success) {
-            navigate("/login");
+            navigate("/dashboard");
         }
     };
 
