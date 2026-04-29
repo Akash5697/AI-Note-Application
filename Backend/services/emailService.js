@@ -16,6 +16,7 @@ function createTransport() {
             user: config.smtp.user,
             pass: config.smtp.pass,
         },
+        family: 4,
         tls: {
             rejectUnauthorized: false,
         },
